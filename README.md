@@ -1,6 +1,6 @@
 # Taller de mapas
 
-Material para el taller de mapas con RLadies Montevideo
+Material para el [taller de mapas con RLadies Montevideo](https://mapas-rladies-mv.netlify.app/).
 
 Prerrequisitos
 * Instalar `usethis`, `tidyverse`, `sf` y `leaflet` (si tienes problemas en este paso abre 
