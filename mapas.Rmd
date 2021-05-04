@@ -9,9 +9,11 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 library(emo)
 ```
 
-En este taller veremos como graficar datos para visualización, sin embargo, los 
-paquetes de R permiten hacer mucho más que solo 
+En este taller veremos como visualizar datos geoespaciales con R, sin embargo, los 
+paquetes de R permiten hacer mucho más que sólo 
 visualizar. Para aprender más sobre esto ver [Geocomputation with R](https://geocompr.robinlovelace.net/intro.html) (@lovelace_geocomputation_2019).
+
+Repositorio: [github.com/tereom/taller-mapas-mv](https://github.com/tereom/taller-mapas-mv/tree/master)
 
 
 # {.tabset}
@@ -39,7 +41,7 @@ Los datos geoespaciales de los departamentos los obtenemos de
 la función `st_read()` para leerlos:
 
 ```{r}
-depart_uy <- st_read("datos/ine_depto")
+depart_uy <- st_read("datos/ine_depto/ine_depto.shp")
 ```
 Los podemos graficar directo con `plot(depart_uy)` o con ggplot (`r ji("heart")`)
 en el segundo caso usamos `geom_sf()` para agregar la capa de coordenadas:
@@ -50,7 +52,8 @@ ggplot(depart_uy) +
 ```
 
 Como vemos en este ejemplo, utilizamos la función `st_read()` que recibe como
-argumento la ruta al archivo con terminación `.shp` y la asigna a `depart_uy`.
+argumento la ruta al archivo con terminación `.shp` (puede ser a la carpeta) y 
+la asigna a `depart_uy`.
 
 Si inspeccionamos el objeto `depart_uy` descubrimos que es un poco familiar (y 
 un poco nuevo), lo familiar es que es una tabla de datos de tipo `data.frame`, 
@@ -152,8 +155,7 @@ ggplot(barrios_mv) +
 ```
 
 `r ji("world")` Lee el archivo en `datos/uptu_cultura` y agrega las ubicaciones 
-contenidas a la misma gráfica que los
-polígonos.
+contenidas a la misma gráfica que los polígonos.
 
 ```{r, include = FALSE}
 cultura_mv <- read_sf("datos/uptu_cultura/uptu_cultura.shp")
@@ -182,7 +184,7 @@ cultura_mv <- cultura_mv %>%
   ))
 ```
 
-También tenemos disponibles las opciones típicas de ggplot.
+También tenemos disponibles las opciones típicas de ggplot como `facet_wrap()`.
 
 ```{r}
 ggplot() +
@@ -201,7 +203,7 @@ datos colectados con gps en una encuesta o ubicaciones obtenidas de google maps.
 Podemos convertir nuestro `data.frame` en un objeto de tipo `sf`, lo que debemos
 hacer es indicar cuáles son las columnas que incluyen información geográfica.
 
-* ``r ji("crayon")` Utiliza google maps para ubicar un lugar especial para ti y 
+* `r ji("crayon")` Utiliza google maps para ubicar un lugar especial para ti y 
 agrégalo a [este documento](https://docs.google.com/spreadsheets/d/1h7n3dpjqGofWYtKf5ADCDAr8nT5U5UalMFq9nS3G_ew/edit#gid=0).
 
 ```{r}
@@ -334,10 +336,14 @@ Para hacer mapas interactivos usaremos el paquete `leaflet` [@leaflet]
 library(leaflet)
 ```
 
-Leaflet recibe datos geoespaciales con la CRS 4326 (al igual que las coordenadas 
-que copiamos de GoogleMaps).
+*Leaflet* es una librería de JavaScript para realizar mapas interactivos, el 
+paquete de R nos permite utilizarla desde R.
 
-Si queremos graficar los puntos culturales debemos comenzar reproyectando:
+### `r ji("museum")` Puntos culturales con Leaflet
+
+Leaflet recibe datos geoespaciales con proyección **CRS 4326** (al igual que las 
+coordenadas que copiamos de GoogleMaps). Por ellos si queremos graficar los puntos 
+culturales debemos comenzar reproyectando:
 
 
 ```{r, error = TRUE}
@@ -355,10 +361,11 @@ leaflet(data = cultura_mv_longlat) %>%
   addCircles()
 ```
 
-La función `addTiles` agrega las *tejas* del fondo. En este ejemplo agregagmos
+La función `addTiles()` agrega las *tejas* del fondo. En este ejemplo agregagmos
 marcadores que muestran la ubicación de los sitios culturales de Montevideo, 
 podemos añadir información de variables en los datos, por ejemplo, el nombre
-de la atracción.
+de la atracción. Y con `addCircles()` agregamos la geometría de puntos representados con 
+círculos.
 
 ```{r}
 leaflet(data = cultura_mv_longlat) %>% 
@@ -367,7 +374,8 @@ leaflet(data = cultura_mv_longlat) %>%
 ```
 
 Con leaflet hay mucha flexibilidad, podemos meter html a las etiquetas o definir
-nuestros propios íconos.
+nuestros propios íconos, en [el sitio](https://rstudio.github.io/leaflet/) se
+explica claramente con ejemplos.
 
 ```{r}
 rLadiesIcon <- makeIcon(
@@ -375,7 +383,7 @@ rLadiesIcon <- makeIcon(
   iconWidth = 38, iconHeight = 38
 )
 
-leaflet(data = colab) %>% 
+leaflet(data = colab_longlat) %>% 
   addTiles() %>% 
   addMarkers(popup = ~nombre, icon = rLadiesIcon) 
 ```
@@ -420,6 +428,9 @@ leaflet(data = colab) %>%
 
 ## `r ji("math")`Extra: Operaciones
 
+Las operaciones con datos geoespaciales van más allá del alcance de este taller
+pero aquí hay algunos ejemplos de lo que se puede hacer.
+
 * Área de polígonos (si no incluyera en los datos).
 
 ```{r}
@@ -431,14 +442,13 @@ barrios_mv %>%
 
 ```{r}
 barrios_cultura_mv <- barrios_mv %>%
-    st_join(cultura_mv, join = st_within) 
+    st_join(cultura_mv, join = st_intersects) # usualmente st_within es más apropiado 
 
 barrios_cultura_mv %>% 
   st_drop_geometry() %>% 
   group_by(NOMBBARR) %>% 
   summarise(n_lugares = sum(!is.na(NOMBRE))) %>% 
-  arrange(-n_lugares) %>% 
-  pull(n_lugares) %>% sum()
+  arrange(-n_lugares) 
 ```
 
 * Distancia entre puntos.
@@ -449,9 +459,7 @@ colab_longlat %>%
 ```
 
 
-## `r ji("book")`Recursos
+## `r ji("book")`Referencias
 
 
-https://catalogodatos.gub.uy/dataset/ide-limites-departamentales
 
-https://gis.stackexchange.com/questions/48949/epsg-3857-or-4326-for-googlemaps-openstreetmap-and-leaflet
