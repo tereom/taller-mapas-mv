@@ -5,7 +5,7 @@ bibliography: refs.bib
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, fig.align = "center")
 library(emo)
 ```
 
@@ -264,6 +264,7 @@ conlleva necesariamente una distorsión de la superficie. La estrategia usual es
 utilizar _superficies de desarrollo_ y después aplanar la superficie. Todas 
 las proyecciones inducen alguna distorsión y las proyecciones de los mapas serán 
 diferentes.
+
 
 <img src="imagenes/mapa_Tierra.png" style="width: 500px;"/>
 
