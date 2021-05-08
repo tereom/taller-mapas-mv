@@ -1,7 +1,15 @@
 ---
 title: "¡Mapas!"
-output: html_document
-bibliography: refs.bib
+description: |
+  Visualización de datos geoespaciales con R.
+author:
+  - name: Maria Teresa Ortiz 
+    url: https://tereom.netlify.app
+date: "`r Sys.Date()`"
+output: 
+  distill::distill_article:
+    toc: TRUE
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
@@ -322,7 +330,7 @@ st_crs(barrios_mv)
 
 
 
-### **Tu turno**
+#### **Tu turno**
 
 `r emo::ji("map")` En un editor de texto abre el archivo `.prj` de alguno de los
 conjuntos de datos geoespaciales que hemos utilizado.
@@ -460,7 +468,7 @@ colab_longlat %>%
 ```
 
 
-## `r ji("book")`Referencias
+## `r ji("book")` Referencias
 
 
 
