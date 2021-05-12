@@ -1,7 +1,8 @@
 ---
-title: "¡Mapas!"
+title: "Mapas con R"
 description: |
   Visualización de datos geoespaciales con R.
+bibliography: refs.bib
 author:
   - name: Maria Teresa Ortiz 
     url: https://tereom.netlify.app
@@ -10,21 +11,45 @@ output:
   distill::distill_article:
     toc: TRUE
     toc_depth: 3
+    pandoc_args: ["--variable", "lang=en"]
+toc-title: "Contenido"
+lang: es
+preview: https://i.ibb.co/FXN1GTx/card.png
+twitter:
+  creator: "@teresaOM"
 ---
 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE, fig.align = "center")
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, fig.align = "center", 
+                      list(width = 90))
 library(emo)
+```
+
+```{r, echo=FALSE}
+library(metathis)
+meta() %>% 
+  meta_name("notas-taller" = "tereom/mapas-taller-mv") %>% 
+  meta_viewport() %>% 
+  meta_social(
+    image = "https://i.ibb.co/FXN1GTx/card.png",
+    image_alt = "Mapa de Montevideo con puntos culturales",
+    twitter_card_type = "summary"
+    )
 ```
 
 En este taller veremos como visualizar datos geoespaciales con R, sin embargo, los 
 paquetes de R permiten hacer mucho más que sólo 
 visualizar. Para aprender más sobre esto ver [Geocomputation with R](https://geocompr.robinlovelace.net/intro.html) (@lovelace_geocomputation_2019).
 
-Repositorio: [github.com/tereom/taller-mapas-mv](https://github.com/tereom/taller-mapas-mv/tree/master)
+## `r emo::ji("computer")`Preparación
 
+Instala los paquetes y descarga el material del taller.
 
-# {.tabset}
+```{r, eval=FALSE}
+install.packages(c("usethis", "tidyverse", "sf", "leaflet"))
+usethis::use_course("https://github.com/tereom/taller-mapas-mv/blob/master/material.zip?raw=true")
+```
 
 ## `r emo::ji("map")`Estáticos 
 
@@ -95,29 +120,43 @@ depart_pob <- basicos %>%
 depart_uy_pob <- depart_uy %>% 
   mutate(nombre = janitor::make_clean_names(NOMBRE)) %>% 
   left_join(depart_pob)
+```
 
+
+<aside>
+Utilizamos el paquete `janitor` para arreglar los nombres y que coincidan entre
+las dos tablas que vamos a unir. Unimos con la función `left_join()` como haríamos
+en una manipulación de datos ususal de `data.frame`s.
+</aside>
+
+Y graficamos nuestro mapa coloreado por población.
+
+```{r}
 ggplot(depart_uy_pob) +
   geom_sf(aes(fill = pob))
 ```
 
+
 ### `r ji("confused")` Lo no tan familiar
 
 Ahora inspeccionamos el lado *nuevo* de nuestro objeto, para empezar notemos que
-la carpeta de donde leímos los datos geospaciales tenía muchos archivos.
+la carpeta de donde leímos los datos geospaciales vectoriales tenía muchos archivos.
 
 ```{r}
 fs::dir_tree("datos/ine_depto/")
 ```
 
-Esto es porque un *shapefile* es un grupo de archivos que contienen geometrías 
-e información de acuerdo a un estándar especificado por el Insituto de 
+Esto es porque, en este ejemplo, nuestros datos vectoriales están almacenados en 
+un *shapefile* (un formato muy común). Un *shapefile* es un grupo de archivos que 
+contienen geometrías e información de acuerdo a un estándar especificado por el Insituto de 
 Investigación en Sistemas de Ecosistemas (ESRI). Nosotros tenemos los 
 siguientes (para ine_depto):
 
 * **nombre.shp**: es el archivo principal y contiene la geometría.
 
 * **nombre.dbf:** es la base de datos y almacena la información de los atributos 
-de los objetos.
+de los objetos, en el caso de `ine_depto` hay un renglón por polígono, es decir, 
+cada línea contiene las características de un departamento.
 
 ```{r}
 ine_depto_dbf <- foreign::read.dbf("datos/ine_depto/ine_depto.dbf")
@@ -142,11 +181,13 @@ podemos indicar la ruta hasta alguno de los archivos:
 `read_sf("datos/ine_barrios/ine_barrios_mvd_nbi85.shp")` o utilizar el argumento
 `layer`: `read_sf("datos/ine_barrios", layer = "ine_barrios_mvd_nbi85")`).
 
-En cuanto a la columna **geometry** puede almacenar distintos tipos de geometría 
-espacial, algunas de las geometrías más comunes están representadas en la 
-siguiente imagen:
+En cuanto a la columna **geometry**, ésta  puede almacenar distintos tipos de 
+datos vectoriales. Para construir datos vectoriales necesitas puntos, líneas y 
+polígonos, que corresponden a los datos vectoriales primarios (los puntos forman
+líneas, y las líneas polígonos. Algunas de las geometrías más comunes están 
+representadas en la  siguiente imagen:
 
-```{r, out.width = "400px",echo = FALSE, fig.cap= "@lovelace_geocomputation_2019 ([CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/))."}
+```{r, fig.width = 4.5, echo = FALSE, fig.cap= "@lovelace_geocomputation_2019 ([CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/))."}
 knitr::include_graphics("imagenes/tipos_geom.png")
 ```
 
@@ -192,13 +233,22 @@ cultura_mv <- cultura_mv %>%
   ))
 ```
 
-También tenemos disponibles las opciones típicas de ggplot como `facet_wrap()`.
+<aside>
+Usamos la función `case_when()` para categorizar los puntos de interés culturales
+de acuerdo al tipo, queremos esta variable para mostrar la información en un mapa.
+</aside>
 
 ```{r}
+glimpse(cultura_mv)
+```
+
+Veamos que tenemos disponibles las opciones típicas de ggplot como `facet_wrap()`.
+
+```{r, layout="l-body-outset"}
 ggplot() +
   geom_sf(data = barrios_mv) +
   geom_sf(data = cultura_mv, color = "red", alpha = 0.8, size = 0.5) + 
-  labs(title = "Establecimientos culturales en Montevideo", 
+  labs(subtitle = "Establecimientos culturales en Montevideo", 
        color = "tipo") +
   theme_void() + 
   facet_wrap(~tipo_establecimiento)
@@ -208,7 +258,7 @@ ggplot() +
 
 Imaginemos que tenemos una tabla de datos georreferenciados, pueden ser 
 datos colectados con gps en una encuesta o ubicaciones obtenidas de google maps.
-Podemos convertir nuestro `data.frame` en un objeto de tipo `sf`, lo que debemos
+Lo podemos almacenar en un `data.frame` que podemos a su vez convertir en un objeto de tipo `sf`, lo que debemos
 hacer es indicar cuáles son las columnas que incluyen información geográfica.
 
 * `r ji("crayon")` Utiliza google maps para ubicar un lugar especial para ti y 
@@ -237,18 +287,24 @@ colab_longlat <- colab %>%
   st_as_sf(coords = c("lat", "long")) %>% 
   st_sf(crs = 4326)
 
+class(colab_longlat)
+```
+
+Y ahora lo podemos graficar con ggplot y `geom_sf()`.
+
+```{r}
 ggplot(colab_longlat) +
   geom_sf(aes(color = nombre))
 ```
 
 
-## `r ji("ruler")` Proyecciones
+## `r ji("ruler")` CRS y Proyecciones
 
 Como vimos con nuestros primeros mapas, los objetos espaciales suelen tener
 asociado un valor en sistema de referencia de coordenadas (**CRS**), en esta
 sección explicamos a qué se refiere y porque es importante. 
 
-La Tierra tiene forma elipsoidal y para llevar puntos en la Tierra a un mapa
+La Tierra tiene forma elipsoidal y para ubicar puntos en la Tierra 
 debemos especificar un modelo de elipse, un punto de origen y dirección de los
 ejes, y una estrategia para proyectar a un plano.
 
@@ -258,29 +314,56 @@ para ajustar toda la Tierra (WGS84, GRS80) y algunos ajustan únicamente por
 regiones (NAD27). Los locales son más precisos para el área para la que fueron
 diseñados pero no funcionan en otras partes del mundo.
 
-```{r}
-rgdal::projInfo(type = "ellps")[1:10, ]
+```{r, layout="l-body-outset"}
+rgdal::projInfo(type = "ellps") %>% 
+  rmarkdown::paged_table()
 ```
 
 2. **Datum:** Define un punto de origen para el sistema de coordenadas de la 
 Tierra y la dirección de los ejes. El datum define el elipsoide que se usará
 pero el sentido contrario no es cierto.
 
-3. **Proyección:** Proyectar el elipsoide en un espacio de dos dimensiones. Es
+```{r, fig.width=4, fig.height=3, echo = FALSE}
+data_crs <- tibble(x = c(0, 10), y = c(0, 20), label = c("datum", "(10m, 20m)"))
+ggplot(data_crs, aes(x, y, label = label)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  geom_point(color = "red", size = 2) +
+  geom_label(nudge_x = 0.2, nudge_y = 1.5) + 
+  xlim(-0.5, 11.5) +
+  theme_bw()
+```
+<aside>
+1. Las distancias deben tener unidades (metros en el ej.).
+2. Se necesita un punto de referencia (*datum*).
+</aside>
+
+Los conceptos anteriores son la base de un sistema de coordenadas, es importante
+recalcar que **no todos los datos geoespaciales usan el mismo sistema de 
+coordenadas**. Y para ser representados en un mismo mapa debemos cuadrarlos.
+
+3. **Proyección:** Nos permiten desplegar el elipsoide en un espacio de dos dimensiones, es
 decir pasar de longitud y latitud en el elipsoide a coordenadas de un mapa, esto
-conlleva necesariamente una distorsión de la superficie. La estrategia usual es
-utilizar _superficies de desarrollo_ y después aplanar la superficie. Todas 
-las proyecciones inducen alguna distorsión y las proyecciones de los mapas serán 
-diferentes.
+facilita ciertas operaciones (por ejemplo. las longitudes y los ángulos son constantes
+en dos dimensiones, en contraste con una esfera donde las líneas de longitud convergen en
+los polos), sin embargo, conlleva necesariamente una distorsión. La estrategia usual  
+para proyectar es
+utilizar _superficies de desarrollo_ y después aplanar la superficie. 
 
+```{r, fig.width = 6, echo = FALSE, fig.cap="[Comparación entre proyecciones tangente y secante cilíndirca, cónica y de azimut](https://en.wikipedia.org/wiki/Map_projection#/media/File:Comparison_of_cartography_surface_development.svg) con licencia [CC-BY 4.0](https://creativecommons.org/licenses/by-sa/4.0/)"}
+knitr::include_graphics("imagenes/projs.png")
+```
 
-<img src="imagenes/mapa_Tierra.png" style="width: 500px;"/>
+<aside>
+Es posible trabajar con datos no proyectados (longitud/latitud), a estos se les
+determina coordenadas geográficas.
+</aside>
 
 Las distorsiones resultan en pérdidas de información que pueden ser en área, 
 forma, distancia o dirección. Por ejemplo _Mercator_ preserva dirección y es 
 útil para navegación: 
 
-```{r}
+```{r, code_folding=TRUE}
 states <- map_data("state")
 usmap <- ggplot(states, aes(x=long, y=lat, group=group)) +
   geom_polygon(fill="white", colour="black")
@@ -289,32 +372,41 @@ usmap + coord_map("mercator")
 
 Por su parte _Azimuthal Equal Area_ preserva area pero no dirección:
 
-```{r, fig.show='hold'}
+```{r, code_folding=TRUE}
 usmap + coord_map("azequalarea") 
 ```
 
 En particular en investigación es común usar _Universal Transverse Mercator 
-(UTM)_ porque preserva ángulos y dirección pero distorsiona distancia. Para
+(UTM)_ porque preserva ángulos y dirección (por lo que es común en sistemas de 
+navegación). Para
 minimizar la distorsión se divide la Tierra en 60 regiones y utiliza una 
 proyección (de secantes) en cada una. Esta es la proyección más común para 
 [Uruguay](https://siglibreuruguay.wordpress.com/2015/12/23/sistemas-de-referencia-de-coordenadas/).
 
-![[Husos y Zonas UTM](https://es.m.wikipedia.org/wiki/Archivo:Utm-zones.jpg) con licencia [CC-BY 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.es)](imagenes/Utm-zones.jpeg)
+<!-- ![[Husos y Zonas UTM](https://es.m.wikipedia.org/wiki/Archivo:Utm-zones.jpg) con licencia [CC-BY 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.es)](imagenes/Utm-zones.jpeg) -->
 
-En R podemos ver la lista de proyecciones con la siguiente instrucción:
+```{r, fig.cap="[Husos y Zonas UTM](https://es.m.wikipedia.org/wiki/Archivo:Utm-zones.jpg) con licencia [CC-BY 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.es)", echo = FALSE, layout="l-body-outset"}
 
-```{r}
-# 135 proyecciones distintas
-rgdal::projInfo(type="proj")[1:20, ]
+knitr::include_graphics("imagenes/Utm-zones.jpeg")
+
 ```
 
-Es posible trabajar con datos no proyectados (longitud/latitud), a estos se les
-determina coordenadas geográficas.
 
-### Sistemas de referencia de coordenadas (CRS)
 
-Los CRS nos dan una manera estándar de describir ubicaciones en la Tierra, una 
-notación común que se utiliza para describir un CRS es proj4string
+<!-- En R podemos ver la lista de proyecciones con la siguiente instrucción: -->
+
+<!-- ```{r} -->
+<!-- # 135 proyecciones distintas -->
+<!-- rgdal::projInfo(type="proj")[1:20, ] -->
+<!-- ``` -->
+
+
+### `r ji("file")` Sistemas de referencia de coordenadas (CRS)
+
+Como vimos arriba, los conjuntos de datos geoespaciales tienen asociado un 
+sistema de referencia de coordenadas (y proyección si es el caso), 
+Hay varias maneras de hacer referencia al sistema asociado a un conjunto de datos, 
+una notación estándar que se utiliza para describir un CRS es proj4string
 y se ven como:
 
 ```{r}
@@ -322,11 +414,15 @@ st_crs(barrios_mv)$proj4string # cartesianas
 st_crs(colab_longlat)$proj4string # geográficas
 ```
 
-También se puede usar el código ESPG asociado.
+También se puede usar el código ESPG asociado, los códigos EPSG. Los códigos 
+**EPSG** (European Petroleum Survey Group) son códigos de 4 a 5 dígitos que representan 
+definiciones de CRS:
 
 ```{r}
-st_crs(barrios_mv)
+st_crs(32721)$proj4string
 ```
+
+Hay más maneras de documentar el sistema de coordenadas, sin embargo las dos mencionadas son muy comunes.
 
 
 
@@ -339,7 +435,7 @@ conjuntos de datos geoespaciales que hemos utilizado.
 
 ## `r emo::ji("pin")` Interactivos
 
-Para hacer mapas interactivos usaremos el paquete `leaflet` [@leaflet]
+Para hacer mapas interactivos usaremos el paquete `leaflet` [@leaflet]:
 
 ```{r}
 library(leaflet)
@@ -418,15 +514,15 @@ leaflet(data = depart_uy_pob) %>%
 
 #### **Tu turno**
 
-Agrega al siguiente código la ubicación de los puntos de interés de Montevideo.
+`r ji("world")` Agrega al siguiente código la ubicación de los puntos de interés de Montevideo.
 
 ```{r, eval=FALSE}
-leaflet(data = colab) %>% 
+leaflet(data = colab_longlat) %>% 
   addTiles() %>% 
   addMarkers(popup = ~nombre, icon = rLadiesIcon) 
 ```
 
-Experimenta con otros fondos, utiliza la función `addProviderTiles()` y elige
+`r ji("world")` Experimenta con otros fondos, utiliza la función `addProviderTiles()` y elige
 un fondo de [aquí](http://leaflet-extras.github.io/leaflet-providers/preview/index.html).
 
 ```{r, eval=FALSE}
@@ -437,7 +533,7 @@ leaflet(data = colab) %>%
 
 ## `r ji("math")`Extra: Operaciones
 
-Las operaciones con datos geoespaciales van más allá del alcance de este taller
+Las operaciones con datos geoespaciales van más allá del alcance de este taller,
 pero aquí hay algunos ejemplos de lo que se puede hacer.
 
 * Área de polígonos (si no incluyera en los datos).
@@ -467,8 +563,10 @@ colab_longlat %>%
   st_distance()
 ```
 
+La [cheatsheet](https://github.com/rstudio/cheatsheets/blob/master/sf.pdf) del 
+paquete `sf` describe operaciones geométricas disponibles, e incluye útiles
+esquemas.
 
-## `r ji("book")` Referencias
+## Licencia {.appendix}
 
-
-
+Texto y gráficas con licencia [Creative Commons Attribution CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), a menos que se indique lo contrario o tengan otra fuente (indicado en la nota). Código en [https://github.com/tereom/taller-mapas-mv](https://github.com/tereom/taller-mapas-mv).
