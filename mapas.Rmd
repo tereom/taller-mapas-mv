@@ -38,9 +38,9 @@ meta() %>%
     )
 ```
 
-En este taller veremos como visualizar datos geoespaciales con R, sin embargo, los 
-paquetes de R permiten hacer mucho más que sólo 
-visualizar. Para aprender más sobre esto ver [Geocomputation with R](https://geocompr.robinlovelace.net/intro.html) (@lovelace_geocomputation_2019).
+En este taller veremos como visualizar datos geoespaciales (vectoriales) con R, 
+sin embargo, los paquetes de R permiten hacer mucho más que sólo 
+visualizar. Para aprender más sobre esto ver [Geocomputation with R](https://geocompr.robinlovelace.net/intro.html) [@lovelace_geocomputation_2019].
 
 ## `r emo::ji("computer")`Preparación
 
@@ -74,8 +74,13 @@ Los datos geoespaciales de los departamentos los obtenemos de
 la función `st_read()` para leerlos:
 
 ```{r}
-depart_uy <- st_read("datos/ine_depto/ine_depto.shp")
+depart_uy <- st_read("datos/ine_depto")
 ```
+
+La función `st_read()` recibe como
+argumento la ruta a la carpeta (puede ser al archivo con terminación `.shp`) y 
+la asigna a `depart_uy`.
+
 Los podemos graficar directo con `plot(depart_uy)` o con ggplot (`r ji("heart")`)
 en el segundo caso usamos `geom_sf()` para agregar la capa de coordenadas:
 
@@ -84,19 +89,17 @@ ggplot(depart_uy) +
   geom_sf()
 ```
 
-Como vemos en este ejemplo, utilizamos la función `st_read()` que recibe como
-argumento la ruta al archivo con terminación `.shp` (puede ser a la carpeta) y 
-la asigna a `depart_uy`.
 
 Si inspeccionamos el objeto `depart_uy` descubrimos que es un poco familiar (y 
 un poco nuevo), lo familiar es que es una tabla de datos de tipo `data.frame`, 
 con una columna adicional de **geometría** que almacena la información de la 
 geometría espacial. 
 
-```{r}
-depart_uy
+```{r, layout="l-body-outset"}
 class(depart_uy)
+glimpse(depart_uy)
 ```
+
 En la gráfica podemos colorear (como en cuaqluier ggplot) los polígonos 
 utilizando con el valor de alguna de las columnas del `data.frame`.
 
@@ -109,7 +112,7 @@ También podemos unirle una tabla de datos externa, por ejemplo de población ([
 
 ```{r, message=FALSE}
 basicos <- read_csv("datos/datosbasicosjds.csv")
-glimpse(basicos %>% select(1:10))
+glimpse(basicos %>% select(1:10, 38))
 
 # un poco de limpieza para poder unir las tablas
 depart_pob <- basicos %>% 
@@ -120,6 +123,9 @@ depart_pob <- basicos %>%
 depart_uy_pob <- depart_uy %>% 
   mutate(nombre = janitor::make_clean_names(NOMBRE)) %>% 
   left_join(depart_pob)
+
+glimpse(depart_uy_pob)
+
 ```
 
 
@@ -139,32 +145,42 @@ ggplot(depart_uy_pob) +
 
 ### `r ji("confused")` Lo no tan familiar
 
-Ahora inspeccionamos el lado *nuevo* de nuestro objeto, para empezar notemos que
-la carpeta de donde leímos los datos geospaciales vectoriales tenía muchos archivos.
+#### Shapefiles
+
+Ahora inspeccionamos el lado *nuevo* de nuestro objeto, cuando leímos los datos
+apuntamos a una carpeta:
+
+```{r, eval=FALSE}
+depart_uy <- st_read("datos/ine_depto")
+```
+
+esta carpeta de donde leímos los datos tiene muchos archivos.
 
 ```{r}
 fs::dir_tree("datos/ine_depto/")
 ```
 
 Esto es porque, en este ejemplo, nuestros datos vectoriales están almacenados en 
-un *shapefile* (un formato muy común). Un *shapefile* es un grupo de archivos que 
-contienen geometrías e información de acuerdo a un estándar especificado por el Insituto de 
-Investigación en Sistemas de Ecosistemas (ESRI). Nosotros tenemos los 
-siguientes (para ine_depto):
+un *shapefile* (un formato muy común para datos geoespaciales). 
+
+Un **shapefile** es un grupo de archivos que contienen geometrías e información 
+de acuerdo a un estándar especificado por el Insituto de Investigación en 
+Sistemas de Ecosistemas (ESRI). En nuestro ejemplo tenemos los siguientes:
 
 * **nombre.shp**: es el archivo principal y contiene la geometría.
 
-* **nombre.dbf:** es la base de datos y almacena la información de los atributos 
-de los objetos, en el caso de `ine_depto` hay un renglón por polígono, es decir, 
-cada línea contiene las características de un departamento.
+* **nombre.dbf**: es la base de datos asoiciada al objeto y almacena la 
+información de los atributos de los objetos, en el caso de `ine_depto` hay un 
+renglón por polígono, es decir, cada línea contiene las características de un 
+departamento.
 
 ```{r}
 ine_depto_dbf <- foreign::read.dbf("datos/ine_depto/ine_depto.dbf")
 head(ine_depto_dbf)
 ```
 
-* **nombre.prj** (opcional): sistema de referencia de coordenadas (CRS: 
-nos dan una manera estándar de describir ubicaciones en la Tierra).
+* **nombre.prj** (opcional): sistema de referencia de coordenadas asociado 
+a los datos.
 
 ```{r}
 crs_depart <- st_crs(depart_uy)
@@ -177,15 +193,23 @@ crs_depart$input
 
 Como vimos en el ejemplo, `read_sf()` recibe la ruta a la carpeta o a alguno de 
 los archivos de la capa de interés (en caso de tener varias capas en una carpeta
-podemos indicar la ruta hasta alguno de los archivos: 
-`read_sf("datos/ine_barrios/ine_barrios_mvd_nbi85.shp")` o utilizar el argumento
-`layer`: `read_sf("datos/ine_barrios", layer = "ine_barrios_mvd_nbi85")`).
+podemos indicar la ruta hasta alguno de los archivos): 
+`read_sf("datos/ine_depto/ine_depto.shp")` o utilizar el argumento
+`layer`: `read_sf("datos/ine_depto", layer = "ine_depto")`).
 
-En cuanto a la columna **geometry**, ésta  puede almacenar distintos tipos de 
-datos vectoriales. Para construir datos vectoriales necesitas puntos, líneas y 
-polígonos, que corresponden a los datos vectoriales primarios (los puntos forman
-líneas, y las líneas polígonos. Algunas de las geometrías más comunes están 
-representadas en la  siguiente imagen:
+#### Geometrías
+
+El segundo aspecto nuevo, es la columna **geometry** en los datos,
+
+```{r}
+depart_uy$geometry
+```
+
+ésta puede almacenar distintos tipos de datos vectoriales. 
+
+Los tipos van aumentando en complejidad, el más simple serían puntos, cuya unión
+forma líneas, con estos dos formas polígonos. Algunas de las geometrías más comunes están 
+representadas en la siguiente imagen:
 
 ```{r, fig.width = 4.5, echo = FALSE, fig.cap= "@lovelace_geocomputation_2019 ([CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/))."}
 knitr::include_graphics("imagenes/tipos_geom.png")
@@ -216,7 +240,10 @@ ggplot() +
 `r ji("world")` Describe la diferencia entre la geometría de los barrios de 
 Montevideo y del archivo de cultura.
 
-Notamos que podemos utilizar las operaciones usuales para transformar tablas de
+
+### `r ji("cartwheel")` Un ejemplo más
+
+Notemos que podemos utilizar las operaciones usuales para transformar tablas de
 datos, por ejemplo, si queremos crear una columna de tipo de establecimiento
 usamos la función `mutate` de `dplyr`.
 
@@ -271,6 +298,7 @@ gs4_deauth()
 colab <- read_sheet(url)
 glimpse(colab)
 ```
+
 Por ahora `colab` es simplemente un `data.frame`, 
 
 ```{r}
@@ -346,9 +374,8 @@ coordenadas**. Y para ser representados en un mismo mapa debemos cuadrarlos.
 decir pasar de longitud y latitud en el elipsoide a coordenadas de un mapa, esto
 facilita ciertas operaciones (por ejemplo. las longitudes y los ángulos son constantes
 en dos dimensiones, en contraste con una esfera donde las líneas de longitud convergen en
-los polos), sin embargo, conlleva necesariamente una distorsión. La estrategia usual  
-para proyectar es
-utilizar _superficies de desarrollo_ y después aplanar la superficie. 
+los polos), sin embargo, conlleva necesariamente una distorsión. La estrategia usual
+para proyectar es utilizar _superficies de desarrollo_ y después aplanar la superficie. 
 
 ```{r, fig.width = 6, echo = FALSE, fig.cap="[Comparación entre proyecciones tangente y secante cilíndirca, cónica y de azimut](https://en.wikipedia.org/wiki/Map_projection#/media/File:Comparison_of_cartography_surface_development.svg) con licencia [CC-BY 4.0](https://creativecommons.org/licenses/by-sa/4.0/)"}
 knitr::include_graphics("imagenes/projs.png")
@@ -424,14 +451,18 @@ st_crs(32721)$proj4string
 
 Hay más maneras de documentar el sistema de coordenadas, sin embargo las dos mencionadas son muy comunes.
 
-
-
 #### **Tu turno**
 
 `r emo::ji("map")` En un editor de texto abre el archivo `.prj` de alguno de los
 conjuntos de datos geoespaciales que hemos utilizado.
 
 `r emo::ji("map")` ¿Cuáles hemos usado hasta ahora?
+
+
+Muchas veces es necesario transformar nuestros datos a otro sistema de coordenadas
+geográficas, por ejemplo, si queremos trabajar con conjuntos de datos con 
+distinto CRS, o para utilizar ciertas herramientas como *leaflet*.
+
 
 ## `r emo::ji("pin")` Interactivos
 
@@ -446,7 +477,7 @@ paquete de R nos permite utilizarla desde R.
 
 ### `r ji("museum")` Puntos culturales con Leaflet
 
-Leaflet recibe datos geoespaciales con proyección **CRS 4326** (al igual que las 
+Leaflet recibe datos geoespaciales con **CRS 4326** (al igual que las 
 coordenadas que copiamos de GoogleMaps). Por ellos si queremos graficar los puntos 
 culturales debemos comenzar reproyectando:
 
@@ -514,6 +545,9 @@ leaflet(data = depart_uy_pob) %>%
 
 #### **Tu turno**
 
+`r ji("world")` ¿Qué ocurre si utilizas leaflet con los datos no transformados, 
+es decir si utilizas `colab` en lugar de `colab_longlat`?
+
 `r ji("world")` Agrega al siguiente código la ubicación de los puntos de interés de Montevideo.
 
 ```{r, eval=FALSE}
@@ -563,7 +597,7 @@ colab_longlat %>%
   st_distance()
 ```
 
-La [cheatsheet](https://github.com/rstudio/cheatsheets/blob/master/sf.pdf) del 
+La *[cheatsheet](https://github.com/rstudio/cheatsheets/blob/master/sf.pdf)* del 
 paquete `sf` describe operaciones geométricas disponibles, e incluye útiles
 esquemas.
 
