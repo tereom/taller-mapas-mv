@@ -195,7 +195,9 @@ Como vimos en el ejemplo, `read_sf()` recibe la ruta a la carpeta o a alguno de
 los archivos de la capa de interés (en caso de tener varias capas en una carpeta
 podemos indicar la ruta hasta alguno de los archivos): 
 `read_sf("datos/ine_depto/ine_depto.shp")` o utilizar el argumento
-`layer`: `read_sf("datos/ine_depto", layer = "ine_depto")`).
+`layer`: `read_sf("datos/ine_depto", layer = "ine_depto")`). Aún cuando un
+shapefile este almacenado en un conjunto de archivos, ésta instrucción es 
+lo único que necesitamos para cargar los datos en R.
 
 #### Geometrías
 
@@ -291,7 +293,8 @@ hacer es indicar cuáles son las columnas que incluyen información geográfica.
 * `r ji("crayon")` Utiliza google maps para ubicar un lugar especial para ti y 
 agrégalo a [este documento](https://docs.google.com/spreadsheets/d/1h7n3dpjqGofWYtKf5ADCDAr8nT5U5UalMFq9nS3G_ew/edit#gid=0).
 
-```{r}
+```{r, cache=FALSE}
+library(tidyverse)
 library(googlesheets4)
 url <- ("https://docs.google.com/spreadsheets/d/1h7n3dpjqGofWYtKf5ADCDAr8nT5U5UalMFq9nS3G_ew/edit#gid=0")
 gs4_deauth()
@@ -301,7 +304,7 @@ glimpse(colab)
 
 Por ahora `colab` es simplemente un `data.frame`, 
 
-```{r}
+```{r, cache = FALSE}
 class(colab)
 ```
 
@@ -310,7 +313,7 @@ indicando cuales son las columnas con información geográfica. De manera
 opcional podemos indicar también la información de la proyección (Google Maps
 utiliza la 4326 para reportar).
 
-```{r}
+```{r, cache = TRUE}
 colab_longlat <- colab %>% 
   st_as_sf(coords = c("lat", "long")) %>% 
   st_sf(crs = 4326)
@@ -459,10 +462,16 @@ conjuntos de datos geoespaciales que hemos utilizado.
 `r emo::ji("map")` ¿Cuáles hemos usado hasta ahora?
 
 
-Muchas veces es necesario transformar nuestros datos a otro sistema de coordenadas
-geográficas, por ejemplo, si queremos trabajar con conjuntos de datos con 
-distinto CRS, o para utilizar ciertas herramientas como *leaflet*.
+### Observaciones
 
+* Como usarios que consumimos datos geoespaciales producidos por otros, 
+usualmente podemos trabajar con la proyección en la que vienen los datos, es
+decir, muchas veces no tenemos que preocuparnos por el detalle de la proyección. 
+Como vimos, pudimos hacer los primeros mapas sin saber de esto.
+
+* Hay algunas situaciones en que si es necesario transformar nuestros datos a 
+otro sistema de coordenadas, por ejemplo, si queremos trabajar con conjuntos de 
+datos con distinto CRS, o para utilizar ciertas herramientas como *leaflet*.
 
 ## `r emo::ji("pin")` Interactivos
 
@@ -479,17 +488,19 @@ paquete de R nos permite utilizarla desde R.
 
 Leaflet recibe datos geoespaciales con **CRS 4326** (al igual que las 
 coordenadas que copiamos de GoogleMaps). Por ellos si queremos graficar los puntos 
-culturales debemos comenzar reproyectando:
+culturales debemos comenzar reproyectando para que leaflet funcione como debe.
 
+La función para reproyectar recibe un objeto de clase `sf`, y la referencia a la 
+proyección que queremos obtener, en este caso vamos a reproyectar `cultura_mv` 
+a la proyección asociada al código ESPG 4326:
 
 ```{r, error = TRUE}
 cultura_mv_longlat <- st_transform(cultura_mv, 4326)
 ```
 
 
-Ahora graficamos, la sintaxis de leaflet es similar a la de ggplot, pero usamos 
-`%>%` en lugar de `+`:
-
+Ahora graficamos con leaflet, la sintaxis de leaflet es similar a la de ggplot, 
+pero usamos `%>%` en lugar de `+`:
 
 ```{r, error = TRUE}
 leaflet(data = cultura_mv_longlat) %>% 
@@ -600,6 +611,29 @@ colab_longlat %>%
 La *[cheatsheet](https://github.com/rstudio/cheatsheets/blob/master/sf.pdf)* del 
 paquete `sf` describe operaciones geométricas disponibles, e incluye útiles
 esquemas.
+
+## `r ji("goodbye")` Resumen
+
+* Hay muchas herramientas para trabajar con datos geoespaciales en R, en este taller
+introdujimos 2 paquetes considerando visualización: `sf`, `leaflet`.
+
+* Con `sf` podemos cargar datos geoespaciales en R, vimos como leer datos en 
+formato shapefile con la función `st_read()` y graficar con ggplot usando la
+geometría `geom_sf()`.
+
+* Para utilizar leaflet tenemos que reproyectar los datos al CRS 4326 usando
+`st_transform()` y con ello estamos listos para usar leaflet, que tiene una 
+sintaxis similar a `ggplot2`.
+
+```{r, eval=FALSE}
+leaflet(data = mi_capa_longlat) %>% 
+  addTiles() %>% 
+  addCircles() 
+```
+
+* Los detalles de que conforman un shapefile y las CRS dan contexto pero podemos
+empezar a hacer mapas mientras seguimos aprendiendo.
+
 
 ## Licencia {.appendix}
 
